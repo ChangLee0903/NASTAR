@@ -1,0 +1,62 @@
+model:
+  DEMUCS:
+    chin: 1
+    chout: 1
+    hidden: 48
+    max_hidden: 10000
+    causal: true
+    glu: true
+    depth: 5
+    kernel_size: 8
+    stride: 4
+    normalize: true
+    resample: 4
+    growth: 2
+    rescale: 0.1
+
+  LSTM:
+    num_layers: 3
+    bidirectional: False
+    activation: 'Identity'
+
+stftloss:
+  factor_sc: 0.5
+  factor_mag: 0.5
+  
+optimizer: 
+  SGD:
+    lr: 0.03
+    momentum: 0.9
+    weight_decay: 1.0e-4
+  Adam:
+    lr: 0.005                                 
+    betas: !!python/tuple [0.9, 0.999]
+  
+train:
+  gradient_clipping: 1.0 
+  batch_size: 8                                         # training batch size
+  acml_batch_size: 8                                    # training batch size
+  total_steps: 20000                                    # total steps for training, a step is a batch of update
+  eval_step: 1000                                       # save model every this amount of training steps
+  log_step: 1000                                        # save model every this amount of training steps
+  max_length: 96000
+  min_length: 24000
+  Corruptor:
+    snrs: [-4, -2, 0, 2, 4, 6, 8]
+    duplicate: True
+
+eval:
+  metrics: ['sisdr', 'stoi', 'pesq_nb', 'pesq_wb']
+  Corruptor:
+    snrs: [-5, 0, 5, 10]
+    duplicate: True
+
+dataset:
+  train:
+    speech: /data/member1/user_changlee/speech_data/LibriSpeech/train-clean-360
+    noise: /data/member1/user_changlee/noise_data/DNS_noise
+  dev:
+    speech: /data/member1/user_changlee/speech_data/LibriSpeech/dev-clean
+  test:
+    speech: /data/member1/user_changlee/speech_data/LibriSpeech/test-clean
+ 
