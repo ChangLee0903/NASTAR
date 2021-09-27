@@ -55,7 +55,9 @@ def argument_parsing():
     # Options
     parser.add_argument('--seed', default=1337, type=int,
                         help='Random seed for reproducable results.', required=False)
-    parser.add_argument('--n_jobs', default=6, type=int,
+    parser.add_argument('--topk', default=250, type=int,
+                        help='Random seed for reproducable results.', required=False)
+    parser.add_argument('--n_jobs', default=8, type=int,
                         help='The number of process for loading data.')
     parser.add_argument('--sample_num', default=16, type=int,
                         help='The number of demo samples to be output.')
@@ -82,7 +84,7 @@ def argument_parsing():
     elif args.method in ['RETV', 'NASTAR']:
         assert not args.cohort_list is None
         with open(args.cohort_list) as f:
-            args.cohort_list = [line.strip() for line in f.readlines()]
+            args.cohort_list = [line.strip() for line in f.readlines()][:args.topk]
     
     args.target_type = args.target_noise.split('/')[-2]
     if not args.target_noise is None:
