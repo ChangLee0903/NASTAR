@@ -55,8 +55,10 @@ def argument_parsing():
     # Options
     parser.add_argument('--seed', default=1337, type=int,
                         help='Random seed for reproducable results.', required=False)
+    parser.add_argument('--valid_num', default=500, type=int,
+                        help='Choose the amount of validation for noise adaptation.')
     parser.add_argument('--topk', default=250, type=int,
-                        help='Random seed for reproducable results.', required=False)
+                        help='Choosing toppest K similar noise for noise adaptation.')
     parser.add_argument('--n_jobs', default=8, type=int,
                         help='The number of process for loading data.')
     parser.add_argument('--sample_num', default=16, type=int,
@@ -107,7 +109,7 @@ def main():
         # set dataloader
         print(f"[DataLoder] - Applying {args.target_type} Dataset")
         train_loader = get_dataloader(args, 'train')
-        dev_loader = get_dataloader(args, 'test')
+        dev_loader = get_dataloader(args, 'dev')
 
         # set model and optimizer
         init_step = 0

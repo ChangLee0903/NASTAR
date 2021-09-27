@@ -29,17 +29,17 @@ optimizer:
     momentum: 0.9
     weight_decay: 1.0e-4
   Adam:
-    lr: 0.005                                 
+    lr: 0.0001                                 
     betas: !!python/tuple [0.9, 0.999]
   
 train:
   gradient_clipping: 1.0 
   batch_size: 8                                         # training batch size
   acml_batch_size: 8                                    # training batch size
-  total_steps: 20000                                    # total steps for training, a step is a batch of update
+  total_steps: 10000                                    # total steps for training, a step is a batch of update
   eval_step: 1000                                       # save model every this amount of training steps
-  log_step: 1000                                        # save model every this amount of training steps
-  max_length: 96000
+  log_step: 100                                         # save model every this amount of training steps
+  max_length: 80000
   min_length: 24000
   Corruptor:
     snrs: [-4, -2, 0, 2, 4, 6, 8]

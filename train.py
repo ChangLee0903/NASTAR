@@ -34,8 +34,6 @@ class Recorder:
         self.grad_avg = np.mean(self.grad_record)
         self.logger.add_scalar('train_loss', self.loss_avg, self.step_count)
         self.logger.add_scalar('grad_norm', self.grad_avg, self.step_count)
-        self.pbar.set_description(
-            'train_loss {:.5f}'.format(self.loss_avg))
         self.loss_record = []
         self.grad_record = []
 
@@ -44,6 +42,8 @@ class Recorder:
             [' | dev_{:} {:.5f}'.format(m, s) for (m, s) in metrics])
         self.pbar.set_description(
             'train_loss {:.5f}{:}'.format(self.loss_avg, scores))
+        for (m, s) in metrics:
+            self.logger.add_scalar(f'dev_{m}', s, self.step_count)
 
     @ torch.no_grad()
     def avg_grad_norm(self, model):

@@ -106,6 +106,8 @@ class DenoisingDataset(torch.utils.data.Dataset):
 
         self.signal_list = filestrs2list(
             args.config['dataset'][mode]['speech'])
+        if mode == 'dev':
+            self.signal_list = random.choices(self.signal_list, k=args.valid_num)
 
         if self.istrain:
             self.min_length = args.config['train']['min_length']
@@ -114,11 +116,12 @@ class DenoisingDataset(torch.utils.data.Dataset):
 
         if args.method in ['GT', 'EXTR'] or not self.istrain:
             noise_list = None
-        elif args.method in ['RETV', 'NASTAR']:
+        elif args.method in ['RETV', 'NASTAR', 'ALL']:
             noise_list = filestrs2list(
                 args.config['dataset'][mode]['noise'])
-            noise_list = [n for n in noise_list if n.split(
-                '/')[-1] in args.cohort_list]
+            if args.method != 'ALL':
+                noise_list = [n for n in noise_list if n.split(
+                    '/')[-1] in args.cohort_list]
 
         self.corruptor = Corruptor(
             noise_list, **args.config[mode]['Corruptor'],

@@ -1,4 +1,4 @@
-from pesq import pesq, PesqError
+from pesq import pesq
 from pystoi import stoi
 from joblib import Parallel, delayed
 from tqdm import tqdm
@@ -115,7 +115,6 @@ def parallel_cal(args, data, targets, lengths, model, metrics):
 
 
 def evaluate(args, dataloader, model, loss_func, cal_metric=False):
-    cal_metric = True
     metric_lst = args.config['eval']['metrics']
     loss_sum = 0
 
