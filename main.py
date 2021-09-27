@@ -25,7 +25,7 @@ def argument_parsing():
                         choices=['DEMUCS', 'LSTM'], help='denoising model type.')
     parser.add_argument('--method', type=str,
                         choices=['GT', 'EXTR', 'ALL', 'RETV',
-                                 'DAT', 'NOA', 'NASTAR'],
+                                 'DAT', 'NOA', 'NASTAR', 'TEST'],
                         help='Method for noise adaptation.')
     parser.add_argument('--task', type=str, default='train',
                         choices=['train', 'test', 'write'], help='Task to do.')
@@ -81,7 +81,7 @@ def argument_parsing():
 
     args.config = yaml.load(open(args.config, 'r'), Loader=yaml.FullLoader)
 
-    if args.method in ['GT', 'EXTR', 'ALL']:
+    if args.method in ['GT', 'EXTR', 'ALL', 'TEST']:
         assert args.cohort_list is None
     elif args.method in ['RETV', 'NASTAR']:
         assert not args.cohort_list is None

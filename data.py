@@ -114,7 +114,7 @@ class DenoisingDataset(torch.utils.data.Dataset):
             self.max_length = args.config['train']['max_length']
         mode = 'train' if self.istrain else 'eval'
 
-        if args.method in ['GT', 'EXTR'] or not self.istrain:
+        if args.method in ['GT', 'EXTR', 'TEST'] or not self.istrain:
             noise_list = None
         elif args.method in ['RETV', 'NASTAR', 'ALL']:
             noise_list = filestrs2list(
