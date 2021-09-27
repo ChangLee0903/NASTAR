@@ -1,4 +1,4 @@
-from pesq import pesq
+from pesq import pesq, PesqError
 from pystoi import stoi
 from joblib import Parallel, delayed
 from tqdm import tqdm
