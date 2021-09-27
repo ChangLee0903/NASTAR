@@ -88,7 +88,7 @@ def argument_parsing():
         with open(args.cohort_list) as f:
             args.cohort_list = [line.strip() for line in f.readlines()][:args.topk]
     
-    args.target_type = args.target_noise.split('/')[-2]
+    args.target_type = args.eval_noise.split('/')[-2]
     if not args.target_noise is None:
         args.target_noise = readfile(args.target_noise)
           

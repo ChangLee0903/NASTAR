@@ -36,7 +36,7 @@ train:
   gradient_clipping: 1.0 
   batch_size: 8                                         # training batch size
   acml_batch_size: 8                                    # training batch size
-  total_steps: 10000                                    # total steps for training, a step is a batch of update
+  total_steps: 20000                                    # total steps for training, a step is a batch of update
   eval_step: 1000                                       # save model every this amount of training steps
   log_step: 100                                         # save model every this amount of training steps
   max_length: 80000
@@ -53,10 +53,10 @@ eval:
 
 dataset:
   train:
-    speech: /data/member1/user_changlee/speech_data/LibriSpeech/train-clean-360
-    noise: /data/member1/user_changlee/noise_data/DNS_noise
+    speech: ../LibriSpeech/train-clean-360
+    noise: ../DNS_noise
   dev:
-    speech: /data/member1/user_changlee/speech_data/LibriSpeech/dev-clean
+    speech: ../LibriSpeech/dev-clean
   test:
-    speech: /data/member1/user_changlee/speech_data/LibriSpeech/test-clean
+    speech: ../LibriSpeech/test-clean
  
