@@ -23,10 +23,7 @@ def argument_parsing():
                         help='Path to experiment configuration.')
     parser.add_argument('--model', type=str, default='DEMUCS',
                         choices=['DEMUCS', 'LSTM'], help='denoising model type.')
-    parser.add_argument('--method', type=str,
-                        choices=['GT', 'EXTR', 'ALL', 'RETV',
-                                 'DAT', 'NOA', 'NASTAR', 'TEST'],
-                        help='Method for noise adaptation.')
+    parser.add_argument('--method', type=str, help='Method for noise adaptation.')
     parser.add_argument('--task', type=str, default='train',
                         choices=['train', 'test', 'write'], help='Task to do.')
     parser.add_argument('--opt', type=str, default='Adam', choices=['SGD', 'Adam'],
@@ -55,8 +52,10 @@ def argument_parsing():
     # Options
     parser.add_argument('--seed', default=1337, type=int,
                         help='Random seed for reproducable results.', required=False)
+    parser.add_argument('--alpha', default=0.5, type=float,
+                        help='Choosing the alpha of resampling for noise adaptation.')
     parser.add_argument('--valid_num', default=500, type=int,
-                        help='Choose the amount of validation for noise adaptation.')
+                        help='Choosing the amount of validation for noise adaptation.')
     parser.add_argument('--topk', default=250, type=int,
                         help='Choosing toppest K similar noise for noise adaptation.')
     parser.add_argument('--n_jobs', default=8, type=int,
@@ -69,6 +68,8 @@ def argument_parsing():
                         help='Calculating metric scores as training.')
     parser.add_argument('--eval_init', action='store_true',
                         help='Computing initial scores before noise adaptaion.')
+    parser.add_argument('--use_source_noise', action='store_true',
+                        help='Choosing source noise data for noise adaptaion.')
     parser.add_argument('--empty_cache', action='store_true',
                         help='Cleaning up the memory of GPU cache in each step.')
     args = parser.parse_args()
@@ -81,9 +82,11 @@ def argument_parsing():
 
     args.config = yaml.load(open(args.config, 'r'), Loader=yaml.FullLoader)
 
-    if args.method in ['GT', 'EXTR', 'ALL', 'TEST']:
+    if not args.cohort_list is None:
+        assert args.use_source_noise
+    if not args.use_source_noise:
         assert args.cohort_list is None
-    elif args.method in ['RETV', 'NASTAR']:
+    elif args.method != 'ALL':
         assert not args.cohort_list is None
         with open(args.cohort_list) as f:
             args.cohort_list = [line.strip() for line in f.readlines()][:args.topk]

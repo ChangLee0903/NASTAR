@@ -47,8 +47,7 @@ class Corruptor:
 
     def sample_noise(self):
         if not self.target_noise is None and not self.noise_list is None:
-            if random.choices([False, True],
-                              weights=[self.alpha, 1-self.alpha], k=1):
+            if random.uniform(0, 1) > self.alpha:
                 noise = self.target_noise
             else:
                 noise = readfile(random.choice(self.noise_list))
@@ -112,9 +111,9 @@ class DenoisingDataset(torch.utils.data.Dataset):
             self.max_length = args.config['train']['max_length']
         mode = 'train' if self.istrain else 'eval'
 
-        if args.method in ['GT', 'EXTR', 'TEST'] or not self.istrain:
+        if not args.use_source_noise or not self.istrain:
             noise_list = None
-        elif args.method in ['RETV', 'NASTAR', 'ALL']:
+        else:
             noise_list = filestrs2list(
                 args.config['dataset'][mode]['noise'])
             if args.method != 'ALL':
@@ -123,7 +122,7 @@ class DenoisingDataset(torch.utils.data.Dataset):
 
         self.corruptor = Corruptor(
             noise_list, **args.config[mode]['Corruptor'],
-            seed=args.seed, target_noise=args.target_noise
+            alpha=args.alpha, seed=args.seed, target_noise=args.target_noise
             if self.istrain else args.eval_noise)
 
     def __len__(self):

@@ -53,10 +53,10 @@ eval:
 
 dataset:
   train:
-    speech: ../LibriSpeech/train-clean-360
-    noise: ../DNS_noise
+    speech: ../speech_data/LibriSpeech/train-clean-360
+    noise: ../noise_data/DNS_noise
   dev:
-    speech: ../LibriSpeech/dev-clean
+    speech: ../speech_data/LibriSpeech/dev-clean
   test:
-    speech: ../LibriSpeech/test-clean
+    speech: ../speech_data/LibriSpeech/test-clean
  
