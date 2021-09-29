@@ -86,7 +86,7 @@ def argument_parsing():
         assert args.use_source_noise
     if not args.use_source_noise:
         assert args.cohort_list is None
-    elif args.method != 'ALL':
+    elif not 'ALL' in args.method:
         assert not args.cohort_list is None
         with open(args.cohort_list) as f:
             args.cohort_list = [line.strip() for line in f.readlines()][:args.topk]

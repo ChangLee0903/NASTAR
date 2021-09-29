@@ -116,7 +116,7 @@ class DenoisingDataset(torch.utils.data.Dataset):
         else:
             noise_list = filestrs2list(
                 args.config['dataset'][mode]['noise'])
-            if args.method != 'ALL':
+            if not 'ALL' in args.method:
                 noise_list = [n for n in noise_list if n.split(
                     '/')[-1] in args.cohort_list]
 
