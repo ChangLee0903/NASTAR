@@ -1,3 +1,4 @@
+from torch.autograd import Function
 import torch.nn.functional as F
 import torch
 import random
@@ -86,8 +87,60 @@ class DenoiseModel(torch.nn.Module):
         return loss
 
     def transform(self, wav, lengths=None):
-        predicted = self.ae_model(wav.unsqueeze(1)).squeeze(1)
+        predicted, _ = self.ae_model(wav.unsqueeze(1))
+        predicted = predicted.squeeze(1)
         if not lengths is None:
             length_masks = self._get_length_masks(lengths).to(wav.device)
             predicted = predicted * length_masks
         return predicted
+
+
+class ReverseLayerF(Function):
+    @staticmethod
+    def forward(ctx, x, alpha):
+        ctx.alpha = alpha
+        return x.view_as(x)
+
+    @staticmethod
+    def backward(ctx, grad_output):
+        output = grad_output.neg() * ctx.alpha
+        return output, None
+
+
+class NoiseClassifier(torch.nn.Module):
+    def __init__(self, **kwargs):
+        self.lstm = torch.nn.LSTM(input_size=768, hidden_size=256,
+                                  num_layers=1, batch_first=True, bidirectional=True)
+        self.fcn = torch.nn.Linear(512, 5)
+        self.loss = torch.nn.CrossEntropyLoss()
+
+    def forward(self, hidden, label):
+        hidden = ReverseLayerF.apply(hidden, 0.05)
+        hidden, _ = self.lstm(hidden)
+        hidden = hidden.mean(dim=1)
+        logit = self.fcn(hidden)
+        loss = self.loss(logit, label)
+        return loss
+
+
+class DATModel(DenoiseModel):
+    def __init__(self, args, **kwargs):
+        super(DenoiseModel, self).__init__(args)
+        from data import NoiseTypeDataset
+        self.target_loader = torch.utils.data.DataLoader(
+            NoiseTypeDataset(args),
+            batch_size=args.config['train']['batch_size'],
+            shuffle=True,
+            num_workers=args.n_jobs)
+        self.noise_cls = NoiseClassifier()
+
+    def forward(self, wav, target, lengths, loss_fn):
+        predicted, _ = self.transform(wav, lengths)
+        se_loss = loss_fn(predicted, target)
+
+        noisy, label = next(iter(self.target_loader))
+        _, hidden = self.transform(noisy, lengths)
+        adv_loss = self.noise_cls(hidden, label)
+
+        loss = se_loss + adv_loss
+        return loss
