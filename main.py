@@ -82,22 +82,23 @@ def argument_parsing():
 
     args.config = yaml.load(open(args.config, 'r'), Loader=yaml.FullLoader)
 
-    if not args.cohort_list is None:
-        assert args.use_source_noise
-    if not args.use_source_noise:
-        assert args.cohort_list is None
-    elif not 'ALL' in args.method:
-        assert not args.cohort_list is None
-        with open(args.cohort_list) as f:
-            args.cohort_list = [line.strip() for line in f.readlines()][:args.topk]
-    
-    args.target_type = args.eval_noise.split('/')[-2]
-    if not args.target_noise is None:
-        args.target_noise = readfile(args.target_noise)
-          
-    assert not args.eval_noise is None
-    args.eval_noise = readfile(args.eval_noise)
-    
+    if args.task == 'train':
+        if args.method != 'DAT' and args.method != 'NA':            
+            if not args.cohort_list is None:
+                assert args.use_source_noise
+            if not args.use_source_noise:
+                assert args.cohort_list is None
+            elif not 'ALL' in args.method:
+                assert not args.cohort_list is None
+                with open(args.cohort_list) as f:
+                    args.cohort_list = [line.strip() for line in f.readlines()][:args.topk]
+            
+        args.target_type = args.eval_noise.split('/')[-2]
+        if not args.target_noise is None:
+            args.target_noise = readfile(args.target_noise)
+            
+        assert not args.eval_noise is None
+        args.eval_noise = readfile(args.eval_noise)
     return args
 
 
@@ -118,8 +119,13 @@ def main():
         init_step = 0
         if args.ckpt is None:
             print('[Model] - Building model')
-            from model import DenoiseModel
-            model = DenoiseModel(args)
+            if args.method != 'DAT' and args.method != 'NA':
+                from model import DenoiseModel
+                model = DenoiseModel(args)
+            elif args.method == 'DAT':
+                from model import DATModel
+                model = DATModel(args)
+
             params = model.parameters()
             optimizer = eval(f'torch.optim.{args.opt}')(params,
                                                         **args.config['optimizer'][args.opt])
@@ -146,69 +152,35 @@ def main():
 
     elif args.task == 'test':
         from model import load_model
-        import csv
-
-        def check_csv_exist(csv_path, method):
-            with open(csv_path, "rt") as fp:
-                csvreader = csv.reader(fp, delimiter=",")
-                for row in csvreader:
-                    if method == row[0]:
-                        fp.close()
-                        return True
-
-                fp.close()
-                return False
-
-        if args.ckpt is None:
-            from model import DenoiseBaseModel
-            method = 'init'
-            if not args.out is None and check_csv_exist(args.out, method):
-                return
-            print(f'[Model] - Loading {method} model parameters')
-            model = DenoiseBaseModel(args)
-        else:
-            method = args.ckpt.split('/')[-2]
-            if not args.out is None and check_csv_exist(args.out, method):
-                return
-            print(f'[Model] - Loading {method} model parameters')
-            if method == 'bsln':
-                args_ckpt, model_, optimizer, init_step = load_model(args)
-                from model import DenoiseBaseModel
-                model = DenoiseBaseModel(args)
-                for w in model.state_dict():
-                    if w in model_.state_dict():
-                        model.state_dict()[w] = model_.state_dict()[w]
-                    else:
-                        print(w)
-                if not args_ckpt.pad_length is None:
-                    args.pad_length = args_ckpt.pad_length
-            else:
-                args_ckpt, model, optimizer, init_step = load_model(args)
-        model = model.to(args.device)
-
-        eval_noise = args.config['dataset'][args.dataset]['test']['noise']
-        print(f"[DataLoder] - Applying on {eval_noise} Corpus")
-        test_loader = get_dataloader(args, 'test')
-
-        print(
-            '[Testing] - Start testing {:} model'.format(method))
-
-        from evaluation import evaluate
         from loss import get_loss_func
-        metric_estimator = get_loss_func(args).to(args.device)
-        loss, metrics = evaluate(
-            args, test_loader, model, metric_estimator, True)
-        scores = ''.join([' | test_{:} {:.5f}'.format(m, s)
-                          for (m, s) in metrics])
-        print('[Evaluation] test_loss {:.5f}{:}'.format(
-            loss, scores))
+        from evaluation import evaluate
+                
+        loss_func = get_loss_func(args).to(args.device)
+        results = torch.load('results.pth')
+        for noise_type in ['ACVacuum_7', 'Babble_7', 'CafeRestaurant_7', 'Car_7', 'MetroSubway_7']:
+            args.target_type = noise_type
+            if not noise_type in results:
+                results[noise_type] = {}
+            for method in ['PTN', 'ALL_A09', 'EXTR', 'RETV', 'GT', 'DAT_full', 'DAT_one', 'NASTAR_A09_K250']:
+                if not method in results[noise_type]:           
+                    results[noise_type][method] = {}
+                    args.ckpt = f'ckpt/{noise_type}/{method}/SE_DEMUCS_20000.pth'
+                    print(f'[Model] - Loading {method} model parameters')
+                    if method == 'PTN':
+                        from model import DenoiseModel
+                        model = DenoiseModel(args)
+                    else:
+                        args_ckpt, model, optimizer, init_step = load_model(args)
+                    
+                    model = model.to(args.device)
+                    test_loader = get_dataloader(args, 'test')
 
-        if not args.out is None:
-            with open(args.out, 'a') as fp:
-                writer = csv.writer(fp)
-                writer.writerow(
-                    [method] + ['{:.5f}'.format(s) for (m, s) in metrics])
-                fp.close()
+                    print(
+                        '[Testing] - Start testing {:} model on {:}'.format(method, args.target_type))
+
+                    metrics = evaluate(args, test_loader, model, loss_func, True)
+                    results[noise_type][method] = {m: s for (m, s) in metrics}
+                    torch.save(results, 'results.pth')
 
     elif args.task == 'write':
         from model import load_model

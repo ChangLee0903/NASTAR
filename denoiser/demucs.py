@@ -190,7 +190,7 @@ class Demucs(nn.Module):
             x = downsample2(x)
 
         x = x[..., :length]
-        return std * x, hid
+        return std * x, hid.permute(1, 0, 2)
 
 
 def fast_conv(conv, x):

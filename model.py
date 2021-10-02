@@ -58,7 +58,7 @@ class DenoiseModel(torch.nn.Module):
                 self.init_weights()
         else:
             self.ae_model = torch.load(args.ae_ckpt)
-
+ 
     @ torch.no_grad()
     def _get_length_masks(self, lengths):
         # lengths: (batch_size, ) in cuda
@@ -109,6 +109,7 @@ class ReverseLayerF(Function):
 
 class NoiseClassifier(torch.nn.Module):
     def __init__(self, **kwargs):
+        super(NoiseClassifier, self).__init__()
         self.lstm = torch.nn.LSTM(input_size=768, hidden_size=256,
                                   num_layers=1, batch_first=True, bidirectional=True)
         self.fcn = torch.nn.Linear(512, 5)
@@ -125,22 +126,34 @@ class NoiseClassifier(torch.nn.Module):
 
 class DATModel(DenoiseModel):
     def __init__(self, args, **kwargs):
-        super(DenoiseModel, self).__init__(args)
+        super(DATModel, self).__init__(args, **kwargs)
         from data import NoiseTypeDataset
+        dataset = NoiseTypeDataset(args)
         self.target_loader = torch.utils.data.DataLoader(
-            NoiseTypeDataset(args),
+            dataset,
             batch_size=args.config['train']['batch_size'],
             shuffle=True,
+            collate_fn=dataset.collate_fn,
             num_workers=args.n_jobs)
         self.noise_cls = NoiseClassifier()
 
     def forward(self, wav, target, lengths, loss_fn):
-        predicted, _ = self.transform(wav, lengths)
+        predicted = self.transform(wav, lengths)
         se_loss = loss_fn(predicted, target)
 
         noisy, label = next(iter(self.target_loader))
-        _, hidden = self.transform(noisy, lengths)
+        noisy, label = noisy.to(wav.device), label.to(wav.device)
+        _, hidden = self.transform(noisy, lengths, True)
         adv_loss = self.noise_cls(hidden, label)
-
         loss = se_loss + adv_loss
         return loss
+
+    def transform(self, wav, lengths=None, is_train=False):
+        predicted, hidden = self.ae_model(wav.unsqueeze(1))
+        predicted = predicted.squeeze(1)
+        if is_train:
+            return predicted, hidden
+        if not lengths is None:
+            length_masks = self._get_length_masks(lengths).to(wav.device)
+            predicted = predicted * length_masks
+        return predicted

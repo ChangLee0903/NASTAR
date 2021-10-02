@@ -10,7 +10,7 @@ import librosa
 
 def readfile(path, sr=16000):
     if '.npy' in path:
-        return torch.FloatTensor(np.load(path)[:, 0])
+        return torch.FloatTensor(np.load(path))
     elif '.wav' in path or '.flac' in path:
         wav, sr = librosa.load(path, sr=sr)
         wav = torch.FloatTensor(wav)
@@ -104,7 +104,8 @@ class DenoisingDataset(torch.utils.data.Dataset):
         self.signal_list = filestrs2list(
             args.config['dataset'][mode]['speech'])
         if mode == 'dev':
-            self.signal_list = random.choices(self.signal_list, k=args.valid_num)
+            self.signal_list = random.choices(
+                self.signal_list, k=args.valid_num)
 
         if self.istrain:
             self.min_length = args.config['train']['min_length']
@@ -116,7 +117,7 @@ class DenoisingDataset(torch.utils.data.Dataset):
         else:
             noise_list = filestrs2list(
                 args.config['dataset'][mode]['noise'])
-            if not 'ALL' in args.method:
+            if not 'ALL' in args.method and not 'DAT' in args.method:
                 noise_list = [n for n in noise_list if n.split(
                     '/')[-1] in args.cohort_list]
 
@@ -150,9 +151,82 @@ class DenoisingDataset(torch.utils.data.Dataset):
         return noisy, clean, lengths
 
 
+class TestDataset(torch.utils.data.Dataset):
+    def __init__(self, args):
+        noisy_path = os.path.join(
+            args.config['dataset']['test']['data'], args.target_type, 'noisy')
+        clean_path = os.path.join(
+            args.config['dataset']['test']['data'], args.target_type, 'clean')
+        
+        self.noisy_list = [os.path.join(noisy_path, p)
+                                for p in os.listdir(noisy_path)]
+        self.clean_list = [os.path.join(clean_path, p)
+                                for p in os.listdir(clean_path)]
+        random.seed(args.seed)
+        
+    def __len__(self):
+        return len(self.clean_list)
+
+    def __getitem__(self, idx):
+        noisy = readfile(self.noisy_list[idx])
+        clean = readfile(self.clean_list[idx])
+        return noisy, clean
+
+    def collate_fn(self, data):
+        noisy = pad_sequence(
+            [wav[0] for wav in data], batch_first=True).contiguous()
+        clean = pad_sequence(
+            [wav[1] for wav in data], batch_first=True).contiguous()
+        lengths = torch.LongTensor([len(wav[0]) for wav in data])
+        return noisy, clean, lengths
+
+
+class NoiseTypeDataset(torch.utils.data.Dataset):
+    def __init__(self, args):
+        random.seed(args.seed)
+
+        self.label_map = {'ACVacuum_7': 0, 'Babble_7': 1,
+                          'CafeRestaurant_7': 2, 'Car_7': 3, 'MetroSubway_7': 4}
+        self.signal_list = []
+        for noise_type in self.label_map:
+            signal_path = os.path.join(
+                args.config['dataset']['test']['data'], noise_type, 'noisy')
+            self.signal_list += [os.path.join(signal_path, p)
+                                 for p in os.listdir(signal_path)]
+        self.signal_list = [n for n in self.signal_list]
+        self.label = [self.label_map[n.split('/')[2]]
+                      for n in self.signal_list]
+        self.min_length = args.config['train']['min_length']
+        self.max_length = args.config['train']['max_length']
+
+    def __len__(self):
+        return len(self.signal_list)
+
+    def __getitem__(self, idx):
+        noisy = self.truncate(readfile(self.signal_list[idx]))
+        label = self.label[idx]
+        return noisy, label
+
+    def truncate(self, sig):
+        seg_length = random.randint(self.min_length, self.max_length)
+        pos = random.randrange(max(1, len(sig) - seg_length))
+        sig = sig[pos: pos+seg_length]
+        return sig
+
+    def collate_fn(self, data):
+        noisy = pad_sequence(
+            [d[0] for d in data], batch_first=True).contiguous()
+        label = torch.LongTensor([d[1] for d in data])
+        return noisy, label
+
+
 def get_dataloader(args, mode='train'):
     is_train = mode == 'train'
-    dataset = DenoisingDataset(args, mode)
+    if args.task == 'train' or args.task == 'dev':
+        dataset = DenoisingDataset(args, mode)
+    elif args.task == 'test':
+        dataset = TestDataset(args)
+    
     dataloader = torch.utils.data.DataLoader(
         dataset,
         batch_size=args.config['train']['batch_size'],
