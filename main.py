@@ -154,14 +154,19 @@ def main():
         from model import load_model
         from loss import get_loss_func
         from evaluation import evaluate
-                
+        import os
+
         loss_func = get_loss_func(args).to(args.device)
-        results = torch.load('results.pth')
         for noise_type in ['ACVacuum_7', 'Babble_7', 'CafeRestaurant_7', 'Car_7', 'MetroSubway_7']:
+            if os.path.exists(f'results_{noise_type}.pth'):
+                results = torch.load(f'results_{noise_type}.pth')
+            else:
+                results = {}
+
             args.target_type = noise_type
             if not noise_type in results:
                 results[noise_type] = {}
-            for method in ['PTN', 'ALL_A09', 'EXTR', 'RETV', 'GT', 'DAT_full', 'DAT_one', 'NASTAR_A09_K250']:
+            for method in ['PTN', 'ALL_A09', 'EXTR', 'RETV', 'GT', 'DAT_full', 'DAT_one', 'NASTAR_A09_K250', 'TEST']:
                 if not method in results[noise_type]:           
                     results[noise_type][method] = {}
                     args.ckpt = f'ckpt/{noise_type}/{method}/SE_DEMUCS_20000.pth'
@@ -180,7 +185,7 @@ def main():
 
                     metrics = evaluate(args, test_loader, model, loss_func, True)
                     results[noise_type][method] = {m: s for (m, s) in metrics}
-                    torch.save(results, 'results.pth')
+                    torch.save(results, f'results_{noise_type}.pth')
 
     elif args.task == 'write':
         from model import load_model

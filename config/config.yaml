@@ -58,5 +58,5 @@ dataset:
   dev:
     speech: ../speech_data/LibriSpeech/dev-clean
   test:
-    data: ../NASTAR_test_data
+    data: ../NASTAR_VCB_test_data
  
