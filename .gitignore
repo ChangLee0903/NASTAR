@@ -2,3 +2,4 @@ ckpt/
 log/
 dnsmos.py
 ckpt.zip
+__pycache__/
