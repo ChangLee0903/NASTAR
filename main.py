@@ -83,7 +83,7 @@ def argument_parsing():
     args.config = yaml.load(open(args.config, 'r'), Loader=yaml.FullLoader)
 
     if args.task == 'train':
-        if args.method != 'DAT' and args.method != 'NA':            
+        if not 'DAT' in args.method:            
             if not args.cohort_list is None:
                 assert args.use_source_noise
             if not args.use_source_noise:
@@ -93,12 +93,14 @@ def argument_parsing():
                 with open(args.cohort_list) as f:
                     args.cohort_list = [line.strip() for line in f.readlines()][:args.topk]
             
-        args.target_type = args.eval_noise.split('/')[-2]
-        if not args.target_noise is None:
-            args.target_noise = readfile(args.target_noise)
-            
-        assert not args.eval_noise is None
-        args.eval_noise = readfile(args.eval_noise)
+            args.target_type = args.eval_noise.split('/')[-2]
+            if not args.target_noise is None:
+                args.target_noise = readfile(args.target_noise)
+                
+            assert not args.eval_noise is None
+            args.eval_noise = readfile(args.eval_noise)
+        else:
+            args.target_type = args.method
     return args
 
 
@@ -119,10 +121,10 @@ def main():
         init_step = 0
         if args.ckpt is None:
             print('[Model] - Building model')
-            if args.method != 'DAT' and args.method != 'NA':
+            if not 'DAT' in args.method:
                 from model import DenoiseModel
                 model = DenoiseModel(args)
-            elif args.method == 'DAT':
+            elif 'DAT' in args.method:
                 from model import DATModel
                 model = DATModel(args)
 
@@ -152,24 +154,27 @@ def main():
 
     elif args.task == 'test':
         from model import load_model
-        from loss import get_loss_func
         from evaluation import evaluate
         import os
+        os.makedirs('vcb_table/')
 
-        loss_func = get_loss_func(args).to(args.device)
+        loss_func = None
         for noise_type in ['ACVacuum_7', 'Babble_7', 'CafeRestaurant_7', 'Car_7', 'MetroSubway_7']:
-            if os.path.exists(f'results_{noise_type}.pth'):
-                results = torch.load(f'results_{noise_type}.pth')
+            if os.path.exists(f'vcb_table/results_{noise_type}.pth'):
+                results = torch.load(f'vcb_table/results_{noise_type}.pth')
             else:
                 results = {}
 
             args.target_type = noise_type
             if not noise_type in results:
                 results[noise_type] = {}
-            for method in ['PTN', 'ALL_A09', 'EXTR', 'RETV', 'GT', 'DAT_full', 'DAT_one', 'NASTAR_A09_K250', 'TEST']:
+            for method in ['PTN', 'ALL', 'EXTR', 'RETV', 'GT', 'DAT_full', 'DAT_one', 'NASTAR', 'TEST']:
                 if not method in results[noise_type]:           
                     results[noise_type][method] = {}
-                    args.ckpt = f'ckpt/{noise_type}/{method}/SE_DEMUCS_20000.pth'
+                    if 'DAT' in method:
+                        args.ckpt = f'ckpt/{method}/SE_DEMUCS_20000.pth'
+                    else:
+                        args.ckpt = f'ckpt/{noise_type}/{method}/SE_DEMUCS_20000.pth'
                     print(f'[Model] - Loading {method} model parameters')
                     if method == 'PTN':
                         from model import DenoiseModel
@@ -185,31 +190,35 @@ def main():
 
                     metrics = evaluate(args, test_loader, model, loss_func, True)
                     results[noise_type][method] = {m: s for (m, s) in metrics}
-                    torch.save(results, f'results_{noise_type}.pth')
+                    torch.save(results, f'vcb_table/results_{noise_type}.pth')
 
     elif args.task == 'write':
         from model import load_model
-
-        if args.ckpt is None:
-            from model import DenoiseBaseModel
-            method = 'init'
-            print(f'[Model] - Loading {method} model parameters')
-            model = DenoiseBaseModel(args)
-        else:
-            method = args.ckpt.split('/')[-2]
-            print(f'[Model] - Loading {method} model parameters')
-            args_ckpt, model, optimizer, init_step = load_model(args)
-            if not args_ckpt.pad_length is None:
-                args.pad_length = args_ckpt.pad_length
-        model = model.to(args.device)
-
-        eval_noise = args.config['dataset'][args.dataset]['test']['noise']
-        print(f"[DataLoder] - Applying on {eval_noise} Corpus")
-        test_loader = get_dataloader(args, 'test')
-
+        from loss import get_loss_func
         from evaluation import write
-        args.out = f'{args.out}/{method}'
-        write(args, test_loader, model)
+
+        assert not args.out is None
+        root_dir = args.out
+
+        loss_func = None
+        for noise_type in ['ACVacuum_7', 'Babble_7', 'CafeRestaurant_7', 'Car_7', 'MetroSubway_7']:
+            args.target_type = noise_type
+            for method in ['PTN', 'ALL_A09', 'EXTR', 'RETV', 'GT', 'DAT_full', 'DAT_one', 'NASTAR_A09_K250', 'TEST']:
+                args.ckpt = f'ckpt/{noise_type}/{method}/SE_DEMUCS_20000.pth'
+                print(f'[Model] - Loading {method} model parameters')
+                if method == 'PTN':
+                    from model import DenoiseModel
+                    model = DenoiseModel(args)
+                else:
+                    args_ckpt, model, optimizer, init_step = load_model(args)
+                
+                model = model.to(args.device)
+                test_loader = get_dataloader(args, 'test')
+
+                print(
+                    '[Testing] - Start predicting {:} model on {:}'.format(method, args.target_type))
+                args.out = f'{root_dir}/{noise_type}/{method}'
+                write(args, test_loader, model)
 
 
 if __name__ == '__main__':

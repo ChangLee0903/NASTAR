@@ -106,13 +106,15 @@ class DenoisingDataset(torch.utils.data.Dataset):
         if mode == 'dev':
             self.signal_list = random.choices(
                 self.signal_list, k=args.valid_num)
+        mode = 'train' if self.istrain else 'eval'
 
         if self.istrain:
             self.min_length = args.config['train']['min_length']
             self.max_length = args.config['train']['max_length']
-        mode = 'train' if self.istrain else 'eval'
-
-        if not args.use_source_noise or not self.istrain:
+        if 'DAT' in args.method:
+            noise_list = filestrs2list(
+                args.config['dataset']['train']['noise'])
+        elif (not args.use_source_noise or not self.istrain):
             noise_list = None
         else:
             noise_list = filestrs2list(
@@ -120,6 +122,8 @@ class DenoisingDataset(torch.utils.data.Dataset):
             if not 'ALL' in args.method and not 'DAT' in args.method:
                 noise_list = [n for n in noise_list if n.split(
                     '/')[-1] in args.cohort_list]
+
+        
 
         self.corruptor = Corruptor(
             noise_list, **args.config[mode]['Corruptor'],
@@ -157,13 +161,13 @@ class TestDataset(torch.utils.data.Dataset):
             args.config['dataset']['test']['data'], args.target_type, 'noisy')
         clean_path = os.path.join(
             args.config['dataset']['test']['data'], args.target_type, 'clean')
-        
+
         self.noisy_list = [os.path.join(noisy_path, p)
-                                for p in os.listdir(noisy_path)]
+                           for p in os.listdir(noisy_path)]
         self.clean_list = [os.path.join(clean_path, p)
-                                for p in os.listdir(clean_path)]
+                           for p in os.listdir(clean_path)]
         random.seed(args.seed)
-        
+
     def __len__(self):
         return len(self.clean_list)
 
@@ -184,15 +188,20 @@ class TestDataset(torch.utils.data.Dataset):
 class NoiseTypeDataset(torch.utils.data.Dataset):
     def __init__(self, args):
         random.seed(args.seed)
+        self.label_map = {n: idx for idx, n in enumerate(
+            os.listdir(args.config['dataset']['test']['data']))}
 
-        self.label_map = {'ACVacuum_7': 0, 'Babble_7': 1,
-                          'CafeRestaurant_7': 2, 'Car_7': 3, 'MetroSubway_7': 4}
         self.signal_list = []
         for noise_type in self.label_map:
             signal_path = os.path.join(
                 args.config['dataset']['test']['data'], noise_type, 'noisy')
-            self.signal_list += [os.path.join(signal_path, p)
-                                 for p in os.listdir(signal_path)]
+            if 'full' in args.method:
+                self.signal_list += [os.path.join(signal_path, p)
+                                     for p in os.listdir(signal_path)]
+            elif 'one' in args.method:
+                self.signal_list += [os.path.join(signal_path,
+                                                  os.listdir(signal_path)[0])]
+
         self.signal_list = [n for n in self.signal_list]
         self.label = [self.label_map[n.split('/')[2]]
                       for n in self.signal_list]
@@ -224,9 +233,9 @@ def get_dataloader(args, mode='train'):
     is_train = mode == 'train'
     if args.task == 'train' or args.task == 'dev':
         dataset = DenoisingDataset(args, mode)
-    elif args.task == 'test':
+    elif args.task == 'test' or args.task == 'write':
         dataset = TestDataset(args)
-    
+
     dataloader = torch.utils.data.DataLoader(
         dataset,
         batch_size=args.config['train']['batch_size'],

@@ -140,9 +140,9 @@ class DATModel(DenoiseModel):
     def forward(self, wav, target, lengths, loss_fn):
         predicted = self.transform(wav, lengths)
         se_loss = loss_fn(predicted, target)
-
-        noisy, label = next(iter(self.target_loader))
-        noisy, label = noisy.to(wav.device), label.to(wav.device)
+        with torch.no_grad():
+            noisy, label = next(iter(self.target_loader))
+            noisy, label = noisy.to(wav.device), label.to(wav.device)
         _, hidden = self.transform(noisy, lengths, True)
         adv_loss = self.noise_cls(hidden, label)
         loss = se_loss + adv_loss

@@ -3,14 +3,17 @@ from pystoi import stoi
 from joblib import Parallel, delayed
 from tqdm import tqdm
 from loss import PMSQE
+from dnsmos import compute_dnsmos
 import scipy.io.wavfile
 import numpy as np
 import torch
 
 OOM_RETRY_LIMIT = 10
 EPS = np.finfo(float).eps
-non_parallel_metrics = ['pesq_nb', 'pesq_wb', 'stoi', 'estoi']
+non_parallel_metrics = ['pesq_nb', 'pesq_wb', 'stoi', 'estoi', 'dnsmos']
 
+def dnsmos_eval(src, tar):
+    return compute_dnsmos(src)
 
 def pmsqe_eval(src, tar):
     with torch.no_grad():
@@ -99,7 +102,6 @@ def non_parallel_cal(args, data, targets, lengths, model, metrics):
     ).cpu().chunk(batch_size) * len(metrics)
 
     lengths_list = lengths.detach().cpu().chunk(batch_size) * len(metrics)
-
     scores = Parallel(n_jobs=args.n_jobs)(delayed(calculate_metric)(l, p, t, f)
                                           for l, p, t, f in zip(lengths_list, predicted_list, targets_list, metric_fns))
     scores = torch.FloatTensor(scores).view(
@@ -114,7 +116,7 @@ def parallel_cal(args, data, targets, lengths, model, metrics):
     return scores
 
 
-def evaluate(args, dataloader, model, loss_func, cal_metric=False):
+def evaluate(args, dataloader, model, loss_func=None, cal_metric=False):
     metric_lst = args.config['eval']['metrics']
     loss_sum = 0
 
@@ -141,7 +143,8 @@ def evaluate(args, dataloader, model, loss_func, cal_metric=False):
             try:
                 # load data and compute loss
                 data, targets = data.to(args.device), targets.to(args.device)
-                loss_sum += model(data, targets, lengths, loss_func).item()
+                if not loss_func is None:
+                    loss_sum += model(data, targets, lengths, loss_func).item()
 
                 if cal_metric:
                     if len(np_metrics) != 0:
@@ -187,36 +190,24 @@ def normalize(wav, target_level=-25):
     return wav
 
 
-def write_wav(dir, i, niy, tar, pre):
-    niy = normalize(niy)
-    tar = normalize(tar)
-    pre = normalize(pre)
-
-    scipy.io.wavfile.write(f'{dir}/sample_{i}_niy.wav', 16000, niy)
-    scipy.io.wavfile.write(f'{dir}/sample_{i}_tar.wav', 16000, tar)
-    scipy.io.wavfile.write(f'{dir}/sample_{i}_pre.wav', 16000, pre)
-
-
 def write(args, dataloader, model):
     import os
     os.makedirs(args.out, exist_ok=True)
+
+    def write_wav(dir, i, wav):
+        wav = normalize(wav)
+        scipy.io.wavfile.write(f'{dir}/sample_{i}.wav', 16000, wav)
 
     model.to(args.device)
     model.eval()
 
     n_sample = 0
     with torch.no_grad():
-        for (data, targets) in dataloader:
+        for (data, targets, lengths) in tqdm(dataloader):
             data = data.to(args.device)
             predicted = model.transform(data)
-
-            data = data.cpu().numpy()
-            targets = targets.cpu().numpy()
             predicted = predicted.cpu().numpy()
 
-            for niy, tar, pre in zip(data, targets, predicted):
+            for pre, leng in zip(predicted, lengths):
+                write_wav(args.out, n_sample, pre[:leng])
                 n_sample += 1
-                write_wav(args.out, n_sample, niy, tar, pre)
-
-                if not args.sample_num is None and n_sample >= args.sample_num:
-                    return

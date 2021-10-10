@@ -89,7 +89,10 @@ def load_logger(args):
 
     def process_filepath(path):
         if not args.method in path:
-            path += '/{:}/{:}'.format(args.target_type, args.method)
+            if args.target_type == args.method:
+                path += '/{:}'.format(args.target_type)
+            else:
+                path += '/{:}/{:}'.format(args.target_type, args.method)
         return path
 
     # build logger directory
