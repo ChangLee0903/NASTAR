@@ -159,7 +159,7 @@ def main():
         os.makedirs('vcb_table/')
 
         loss_func = None
-        for noise_type in ['ACVacuum_7', 'Babble_7', 'CafeRestaurant_7', 'Car_7', 'MetroSubway_7']:
+        for noise_type in ['ACVacuum', 'Babble', 'CafeRestaurant', 'Car', 'MetroSubway']:
             if os.path.exists(f'vcb_table/results_{noise_type}.pth'):
                 results = torch.load(f'vcb_table/results_{noise_type}.pth')
             else:
@@ -168,7 +168,7 @@ def main():
             args.target_type = noise_type
             if not noise_type in results:
                 results[noise_type] = {}
-            for method in ['PTN', 'ALL', 'EXTR', 'RETV', 'GT', 'DAT_full', 'DAT_one', 'NASTAR', 'TEST']:
+            for method in ['PTN', 'ALL', 'EXTR', 'RETV', 'GT', 'DAT_full', 'DAT_one', 'NASTAR', 'OPT']:
                 if not method in results[noise_type]:           
                     results[noise_type][method] = {}
                     if 'DAT' in method:
@@ -201,9 +201,9 @@ def main():
         root_dir = args.out
 
         loss_func = None
-        for noise_type in ['ACVacuum_7', 'Babble_7', 'CafeRestaurant_7', 'Car_7', 'MetroSubway_7']:
+        for noise_type in ['ACVacuum', 'Babble', 'CafeRestaurant', 'Car', 'MetroSubway']:
             args.target_type = noise_type
-            for method in ['PTN', 'ALL_A09', 'EXTR', 'RETV', 'GT', 'DAT_full', 'DAT_one', 'NASTAR_A09_K250', 'TEST']:
+            for method in ['PTN', 'ALL', 'EXTR', 'RETV', 'GT', 'DAT_full', 'DAT_one', 'NASTAR', 'OPT']:
                 args.ckpt = f'ckpt/{noise_type}/{method}/SE_DEMUCS_20000.pth'
                 print(f'[Model] - Loading {method} model parameters')
                 if method == 'PTN':
