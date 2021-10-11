@@ -15,9 +15,24 @@ model:
     rescale: 0.1
 
   LSTM:
-    num_layers: 3
+    num_layers: 1
+    hidden_size: 257
     bidirectional: False
-    activation: 'Identity'
+    feat:
+      win_len: 512
+      hop_len: 256
+      n_freq: 257
+      log: True
+
+  GRU:
+    num_layers: 1
+    hidden_size: 257
+    bidirectional: False
+    feat:
+      win_len: 512
+      hop_len: 256
+      n_freq: 257
+      log: True
 
 stftloss:
   factor_sc: 0.5
