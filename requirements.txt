@@ -11,4 +11,3 @@ tensorboard==2.2.0
 torch==1.6.0
 torchaudio==0.6.0
 tqdm==4.60.0
-# python 3.7.10

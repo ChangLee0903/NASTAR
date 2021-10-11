@@ -3,7 +3,7 @@ from pystoi import stoi
 from joblib import Parallel, delayed
 from tqdm import tqdm
 from loss import PMSQE
-from dnsmos import compute_dnsmos
+# from dnsmos import compute_dnsmos
 import scipy.io.wavfile
 import numpy as np
 import torch
@@ -12,8 +12,8 @@ OOM_RETRY_LIMIT = 10
 EPS = np.finfo(float).eps
 non_parallel_metrics = ['pesq_nb', 'pesq_wb', 'stoi', 'estoi', 'dnsmos']
 
-def dnsmos_eval(src, tar):
-    return compute_dnsmos(src)
+# def dnsmos_eval(src, tar):
+#     return compute_dnsmos(src)
 
 def pmsqe_eval(src, tar):
     with torch.no_grad():
