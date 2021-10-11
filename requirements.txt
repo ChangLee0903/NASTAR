@@ -1,0 +1,14 @@
+asteroid==0.3.5
+fairseq==0.10.2
+faiss-gpu==1.6.3
+fastcluster==1.1.28
+joblib==1.0.1
+librosa==0.8.0
+numpy==1.20.2
+pystoi==0.3.3
+soundfile==0.10.3.post1
+tensorboard==2.2.0
+torch==1.6.0
+torchaudio==0.6.0
+tqdm==4.60.0
+# python 3.7.10
