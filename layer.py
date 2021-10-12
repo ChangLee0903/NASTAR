@@ -91,10 +91,3 @@ class GRU(torch.nn.Module):
         predicted = self.scaling_layer(predicted)
         predicted = torch.clamp(predicted, min=0)
         return predicted
-
-m = OnlinePreprocessor()
-wav_i = torch.zeros(1, 16000)
-mag, pha = m(wav_i)
-wav_o = m.inverse(mag, pha, 16000)
-print(wav_i[:16000])
-print(wav_o[:16000])

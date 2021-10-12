@@ -6,14 +6,17 @@ MAX_POSITIONS_LEN = 16000 * 50
 
 
 def save_model(model, optimizer, args, current_step):
-    path = f'{args.ckptdir}/SE_{args.model}_{current_step}.pth'
-    all_states = {
-        'Model': model,
-        'Optimizer': optimizer.state_dict(),
-        'Current_step': current_step,
-        'Args': args
-    }
-    torch.save(all_states, path)
+    if args.method == 'PTN':
+        torch.save(model, f'{args.ckptdir}/{args.model}.pth')
+    else:
+        path = f'{args.ckptdir}/SE_{args.model}_{current_step}.pth'
+        all_states = {
+            'Model': model,
+            'Optimizer': optimizer.state_dict(),
+            'Current_step': current_step,
+            'Args': args
+        }
+        torch.save(all_states, path)
 
 
 def load_model(args):
@@ -73,11 +76,13 @@ class SpectrumDenoiseModel(torch.nn.Module):
             elif 'bias' in name:
                 torch.nn.init.constant_(param.data, 0)
 
-    @ torch.no_grad()
     def _mask(self, feat, lengths):
-        stft_lengths = lengths // self.preprocessor._win_args['hop_length'] + 1
-        stft_length_masks = self._get_length_masks(stft_lengths)
-        feat = feat * stft_length_masks
+        with torch.no_grad():
+            stft_lengths = lengths // self.preprocessor._win_args['hop_length'] + 1
+            stft_length_masks = self._get_length_masks(stft_lengths)
+            if feat.ndim > stft_length_masks.ndim:
+                stft_length_masks = stft_length_masks.unsqueeze(-1)
+        feat = feat * stft_length_masks.to(feat.device)
         return feat
 
     def forward(self, wav, target, lengths, loss_fn):

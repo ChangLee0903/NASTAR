@@ -147,7 +147,7 @@ def train(args, model, optimizer, train_loader, dev_loader, loss_func, init_step
                     recorder.batch_factor
                 loss.backward()
                 loss = loss.item()
-
+                
                 # recording step and loss
                 recorder.accumulate(len(targets), loss)
                 if recorder.is_update(len(targets)):

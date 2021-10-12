@@ -144,7 +144,7 @@ def evaluate(args, dataloader, model, loss_func=None, cal_metric=False):
                 # load data and compute loss
                 data, targets = data.to(args.device), targets.to(args.device)
                 if not loss_func is None:
-                    loss_sum += model(data, targets, lengths, loss_func).item()
+                    loss_sum += model(data, targets, lengths, loss_func).item() * len(data)
 
                 if cal_metric:
                     if len(np_metrics) != 0:

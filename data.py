@@ -111,7 +111,7 @@ class DenoisingDataset(torch.utils.data.Dataset):
         if self.istrain:
             self.min_length = args.config['train']['min_length']
             self.max_length = args.config['train']['max_length']
-        if 'DAT' in args.method:
+        if 'DAT' in args.method or args.method == 'PTN':
             noise_list = filestrs2list(
                 args.config['dataset']['train']['noise'])
         elif (not args.use_source_noise or not self.istrain):

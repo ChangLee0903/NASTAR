@@ -22,7 +22,7 @@ def argument_parsing():
     parser.add_argument('--config', type=str, default='config/config.yaml',
                         help='Path to experiment configuration.')
     parser.add_argument('--model', type=str, default='DEMUCS',
-                        choices=['DEMUCS', 'LSTM'], help='denoising model type.')
+                        choices=['DEMUCS', 'LSTM', 'GRU'], help='denoising model type.')
     parser.add_argument('--method', type=str, help='Method for noise adaptation.')
     parser.add_argument('--task', type=str, default='train',
                         choices=['train', 'test', 'write'], help='Task to do.')
@@ -83,7 +83,11 @@ def argument_parsing():
     args.config = yaml.load(open(args.config, 'r'), Loader=yaml.FullLoader)
 
     if args.task == 'train':
-        if not 'DAT' in args.method:            
+        if args.method == 'PTN':
+            args.ae_ckpt = None
+
+        assert not(args.model in ['LSTM', 'GRU'] and args.loss == 'mrstft')
+        if not('DAT' in args.method or 'PTN' in args.method):            
             if not args.cohort_list is None:
                 assert args.use_source_noise
             if not args.use_source_noise:
@@ -122,8 +126,12 @@ def main():
         if args.ckpt is None:
             print('[Model] - Building model')
             if not 'DAT' in args.method:
-                from model import DenoiseModel
-                model = DenoiseModel(args)
+                if args.model in ['LSTM', 'GRU']:
+                    from model import SpectrumDenoiseModel
+                    model = SpectrumDenoiseModel(args)
+                else:
+                    from model import DenoiseModel
+                    model = DenoiseModel(args)
             elif 'DAT' in args.method:
                 from model import DATModel
                 model = DATModel(args)
