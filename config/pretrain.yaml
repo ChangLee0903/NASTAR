@@ -15,7 +15,7 @@ model:
     rescale: 0.1
 
   LSTM:
-    num_layers: 1
+    num_layers: 2
     hidden_size: 257
     bidirectional: False
     feat:
@@ -25,7 +25,7 @@ model:
       log: True
 
   GRU:
-    num_layers: 1
+    num_layers: 2
     hidden_size: 257
     bidirectional: False
     feat:
