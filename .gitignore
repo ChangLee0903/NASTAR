@@ -3,6 +3,6 @@ log/
 log_/
 dnsmos.py
 ckpt.zip
-# LSTM.pth
-# GRU.pth
+LSTM.pth
+GRU.pth
 __pycache__/
