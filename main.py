@@ -36,7 +36,7 @@ def argument_parsing():
                         help='Path to store checkpoint result, if empty then default is used.')
     parser.add_argument(
         '--ckpt', type=str, help="Path to load target model")
-    parser.add_argument('--ae_ckpt', default='PTN/DEMUCS.pth', type=str,
+    parser.add_argument('--ae_ckpt', default='ckpt/PTN/DEMUCS.pth', type=str,
                         help="Path to load source pretrain model")
     parser.add_argument('--target_noise', type=str,
                         help="The path of the target noise signal to resample as running noise adaptation.")
