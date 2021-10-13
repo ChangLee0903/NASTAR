@@ -23,7 +23,8 @@ def argument_parsing():
                         help='Path to experiment configuration.')
     parser.add_argument('--model', type=str, default='DEMUCS',
                         choices=['DEMUCS', 'LSTM', 'GRU'], help='denoising model type.')
-    parser.add_argument('--method', type=str, help='Method for noise adaptation.')
+    parser.add_argument('--method', type=str,
+                        help='Method for noise adaptation.')
     parser.add_argument('--task', type=str, default='train',
                         choices=['train', 'test', 'write'], help='Task to do.')
     parser.add_argument('--opt', type=str, default='Adam', choices=['SGD', 'Adam'],
@@ -87,7 +88,7 @@ def argument_parsing():
             args.ae_ckpt = None
 
         assert not(args.model in ['LSTM', 'GRU'] and args.loss == 'mrstft')
-        if not('DAT' in args.method or 'PTN' in args.method):            
+        if not('DAT' in args.method or 'PTN' in args.method):
             if not args.cohort_list is None:
                 assert args.use_source_noise
             if not args.use_source_noise:
@@ -95,18 +96,22 @@ def argument_parsing():
             elif not 'ALL' in args.method:
                 assert not args.cohort_list is None
                 with open(args.cohort_list) as f:
-                    args.cohort_list = [line.strip() for line in f.readlines()][:args.topk]
-            
+                    args.cohort_list = [line.strip()
+                                        for line in f.readlines()][:args.topk]
+
             args.target_type = args.eval_noise.split('/')[-2]
             if not args.target_noise is None:
                 args.target_noise = readfile(args.target_noise)
-                
+
             assert not args.eval_noise is None
             args.eval_noise = readfile(args.eval_noise)
 
         elif 'DAT' in args.method:
             args.target_type = args.eval_noise.split('/')[-2]
-            
+
+            assert not args.eval_noise is None
+            args.eval_noise = readfile(args.eval_noise)
+
         elif 'PTN' in args.method:
             args.target_type = args.method
     return args
@@ -118,7 +123,7 @@ def main():
 
     # set random seed
     set_random_seed(args.seed)
-    
+
     if args.task == 'train':
         # set dataloader
         print(f"[DataLoder] - Applying {args.target_type} Dataset")
@@ -150,7 +155,7 @@ def main():
 
         model.to(args.device)
         from train import train
-        
+
         from loss import get_loss_func
         loss_func = get_loss_func(args).to(args.device)
 
@@ -158,7 +163,7 @@ def main():
             from evaluation import evaluate
             metrics = evaluate(args, dev_loader, model, loss_func, True)
             scores = ''.join([' | dev_{:} {:.5f}'.format(m, s)
-                                for (m, s) in metrics[1:]])
+                              for (m, s) in metrics[1:]])
             print('[Initial] dev_loss {:.5f}{:}'.format(metrics[0][1], scores))
 
         train(args, model, optimizer, train_loader,
@@ -181,7 +186,7 @@ def main():
             if not noise_type in results:
                 results[noise_type] = {}
             for method in ['PTN', 'ALL', 'EXTR', 'RETV', 'GT', 'DAT_full', 'DAT_one', 'NASTAR', 'OPT']:
-                if not method in results[noise_type]:           
+                if not method in results[noise_type]:
                     results[noise_type][method] = {}
                     if 'DAT' in method:
                         args.ckpt = f'ckpt/{method}/SE_DEMUCS_20000.pth'
@@ -192,15 +197,17 @@ def main():
                         from model import DenoiseModel
                         model = DenoiseModel(args)
                     else:
-                        args_ckpt, model, optimizer, init_step = load_model(args)
-                    
+                        args_ckpt, model, optimizer, init_step = load_model(
+                            args)
+
                     model = model.to(args.device)
                     test_loader = get_dataloader(args, 'test')
 
                     print(
                         '[Testing] - Start testing {:} model on {:}'.format(method, args.target_type))
 
-                    metrics = evaluate(args, test_loader, model, loss_func, True)
+                    metrics = evaluate(args, test_loader,
+                                       model, loss_func, True)
                     results[noise_type][method] = {m: s for (m, s) in metrics}
                     torch.save(results, f'vcb_table/results_{noise_type}.pth')
 
@@ -223,7 +230,7 @@ def main():
                     model = DenoiseModel(args)
                 else:
                     args_ckpt, model, optimizer, init_step = load_model(args)
-                
+
                 model = model.to(args.device)
                 test_loader = get_dataloader(args, 'test')
 

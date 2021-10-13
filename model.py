@@ -85,7 +85,7 @@ class SpectrumDenoiseModel(torch.nn.Module):
         feat = feat * stft_length_masks.to(feat.device)
         return feat
 
-    def forward(self, wav, target, lengths, loss_fn):
+    def forward(self, wav, target, lengths, loss_fn, **kwargs):
         with torch.no_grad():
             feat_tar, _ = self.preprocessor(target)
             if not lengths is None:
@@ -140,7 +140,7 @@ class DenoiseModel(torch.nn.Module):
             elif 'bias' in name:
                 torch.nn.init.constant_(param.data, 0)
 
-    def forward(self, wav, target, lengths, loss_fn):
+    def forward(self, wav, target, lengths, loss_fn, **kwargs):
         predicted = self.transform(wav, lengths)
         loss = loss_fn(predicted, target)
         return loss
@@ -173,7 +173,7 @@ class NoiseClassifier(torch.nn.Module):
                                   num_layers=1, batch_first=True, bidirectional=True)
         self.fcn = torch.nn.Linear(512, 1)
         self.loss = torch.nn.BCEWithLogitsLoss()
-    
+
     def extract_emb(self, hidden):
         hidden = ReverseLayerF.apply(hidden, 0.05)
         hidden, _ = self.lstm(hidden)
@@ -202,17 +202,22 @@ class DATModel(DenoiseModel):
             num_workers=args.n_jobs)
         self.noise_cls = NoiseClassifier()
 
-    def forward(self, wav, target, lengths, loss_fn):
-        predicted, pos_hidden = self.transform(wav, lengths, True)
-        se_loss = loss_fn(predicted, target)
-        with torch.no_grad():
-            noisy = next(iter(self.target_loader))
-            noisy = noisy.to(wav.device)
-        _, neg_hidden = self.transform(noisy, lengths, True)
-        
-        label = torch.FloatTensor([1] * len(pos_hidden) + [0] * len(neg_hidden)).to(wav.device)
-        adv_loss = self.noise_cls(pos_hidden, neg_hidden, label)
-        loss = se_loss + adv_loss
+    def forward(self, wav, target, lengths, loss_fn, istrain=True):
+        if istrain:
+            predicted, pos_hidden = self.transform(wav, lengths, True)
+            se_loss = loss_fn(predicted, target)
+            with torch.no_grad():
+                noisy = next(iter(self.target_loader))
+                noisy = noisy.to(wav.device)
+            _, neg_hidden = self.transform(noisy, lengths, True)
+
+            label = torch.FloatTensor(
+                [1] * len(pos_hidden) + [0] * len(neg_hidden)).to(wav.device)
+            adv_loss = self.noise_cls(pos_hidden, neg_hidden, label)
+            loss = se_loss + adv_loss
+        else:
+            predicted = self.transform(wav, lengths, False)
+            loss = loss_fn(predicted, target)
         return loss
 
     def transform(self, wav, lengths=None, is_train=False):

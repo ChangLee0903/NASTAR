@@ -15,6 +15,7 @@ non_parallel_metrics = ['pesq_nb', 'pesq_wb', 'stoi', 'estoi', 'dnsmos']
 # def dnsmos_eval(src, tar):
 #     return compute_dnsmos(src)
 
+
 def pmsqe_eval(src, tar):
     with torch.no_grad():
         return pmsqe_func(src, tar).item() * len(src)
@@ -135,7 +136,7 @@ def evaluate(args, dataloader, model, loss_func=None, cal_metric=False):
         p_metrics = [eval(f'{m}_eval')
                      for m in metric_lst if not m in non_parallel_metrics]
         scores_sum = torch.zeros(len(np_metrics + p_metrics))
-    
+
     oom_counter = 0
     n_sample = 0
     with torch.no_grad():
@@ -144,7 +145,8 @@ def evaluate(args, dataloader, model, loss_func=None, cal_metric=False):
                 # load data and compute loss
                 data, targets = data.to(args.device), targets.to(args.device)
                 if not loss_func is None:
-                    loss_sum += model(data, targets, lengths, loss_func).item() * len(data)
+                    loss_sum += model(data, targets, lengths,
+                                      loss_func, istrain=False).item() * len(data)
 
                 if cal_metric:
                     if len(np_metrics) != 0:
@@ -154,7 +156,7 @@ def evaluate(args, dataloader, model, loss_func=None, cal_metric=False):
                         p_scores = parallel_cal(
                             args, data, targets, lengths, model, p_metrics)
                     scores_sum += torch.cat([np_scores, p_scores])
-                
+
                 # compute n_sample
                 n_sample += len(targets)
 
@@ -170,7 +172,7 @@ def evaluate(args, dataloader, model, loss_func=None, cal_metric=False):
 
     model.train()
     torch.cuda.empty_cache()
-    
+
     loss_avg = loss_sum / n_sample
     metrics = [('loss', loss_avg)]
     if cal_metric:

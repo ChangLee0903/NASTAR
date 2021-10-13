@@ -111,19 +111,17 @@ class DenoisingDataset(torch.utils.data.Dataset):
         if self.istrain:
             self.min_length = args.config['train']['min_length']
             self.max_length = args.config['train']['max_length']
-        if 'DAT' in args.method or args.method == 'PTN':
+        if ('DAT' in args.method and self.istrain) or args.method == 'PTN':
             noise_list = filestrs2list(
                 args.config['dataset']['train']['noise'])
         elif (not args.use_source_noise or not self.istrain):
             noise_list = None
         else:
             noise_list = filestrs2list(
-                args.config['dataset'][mode]['noise'])
+                args.config['dataset']['train']['noise'])
             if not 'ALL' in args.method and not 'DAT' in args.method:
                 noise_list = [n for n in noise_list if n.split(
                     '/')[-1] in args.cohort_list]
-
-        
 
         self.corruptor = Corruptor(
             noise_list, **args.config[mode]['Corruptor'],
@@ -192,10 +190,10 @@ class NoiseTypeDataset(torch.utils.data.Dataset):
             args.config['dataset']['test']['data'], args.target_type, 'noisy')
         if 'full' in args.method:
             self.signal_list = [os.path.join(signal_path, p)
-                                    for p in os.listdir(signal_path)]
+                                for p in os.listdir(signal_path)]
         elif 'one' in args.method:
             self.signal_list = [os.path.join(signal_path,
-                                                os.listdir(signal_path)[0])] * len(os.listdir(signal_path))
+                                             os.listdir(signal_path)[0])] * len(os.listdir(signal_path))
 
         self.min_length = args.config['train']['min_length']
         self.max_length = args.config['train']['max_length']
