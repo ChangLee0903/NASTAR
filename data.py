@@ -188,23 +188,15 @@ class TestDataset(torch.utils.data.Dataset):
 class NoiseTypeDataset(torch.utils.data.Dataset):
     def __init__(self, args):
         random.seed(args.seed)
-        self.label_map = {n: idx for idx, n in enumerate(
-            os.listdir(args.config['dataset']['test']['data']))}
+        signal_path = os.path.join(
+            args.config['dataset']['test']['data'], args.target_type, 'noisy')
+        if 'full' in args.method:
+            self.signal_list = [os.path.join(signal_path, p)
+                                    for p in os.listdir(signal_path)]
+        elif 'one' in args.method:
+            self.signal_list = [os.path.join(signal_path,
+                                                os.listdir(signal_path)[0])] * len(os.listdir(signal_path))
 
-        self.signal_list = []
-        for noise_type in self.label_map:
-            signal_path = os.path.join(
-                args.config['dataset']['test']['data'], noise_type, 'noisy')
-            if 'full' in args.method:
-                self.signal_list += [os.path.join(signal_path, p)
-                                     for p in os.listdir(signal_path)]
-            elif 'one' in args.method:
-                self.signal_list += [os.path.join(signal_path,
-                                                  os.listdir(signal_path)[0])]
-
-        self.signal_list = [n for n in self.signal_list]
-        self.label = [self.label_map[n.split('/')[2]]
-                      for n in self.signal_list]
         self.min_length = args.config['train']['min_length']
         self.max_length = args.config['train']['max_length']
 
@@ -213,8 +205,7 @@ class NoiseTypeDataset(torch.utils.data.Dataset):
 
     def __getitem__(self, idx):
         noisy = self.truncate(readfile(self.signal_list[idx]))
-        label = self.label[idx]
-        return noisy, label
+        return noisy
 
     def truncate(self, sig):
         seg_length = random.randint(self.min_length, self.max_length)
@@ -224,9 +215,8 @@ class NoiseTypeDataset(torch.utils.data.Dataset):
 
     def collate_fn(self, data):
         noisy = pad_sequence(
-            [d[0] for d in data], batch_first=True).contiguous()
-        label = torch.LongTensor([d[1] for d in data])
-        return noisy, label
+            [d for d in data], batch_first=True).contiguous()
+        return noisy
 
 
 def get_dataloader(args, mode='train'):

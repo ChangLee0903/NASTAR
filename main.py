@@ -103,7 +103,11 @@ def argument_parsing():
                 
             assert not args.eval_noise is None
             args.eval_noise = readfile(args.eval_noise)
-        else:
+
+        elif 'DAT' in args.method:
+            args.target_type = args.eval_noise.split('/')[-2]
+            
+        elif 'PTN' in args.method:
             args.target_type = args.method
     return args
 

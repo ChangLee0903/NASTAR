@@ -171,14 +171,20 @@ class NoiseClassifier(torch.nn.Module):
         super(NoiseClassifier, self).__init__()
         self.lstm = torch.nn.LSTM(input_size=768, hidden_size=256,
                                   num_layers=1, batch_first=True, bidirectional=True)
-        self.fcn = torch.nn.Linear(512, 5)
-        self.loss = torch.nn.CrossEntropyLoss()
-
-    def forward(self, hidden, label):
+        self.fcn = torch.nn.Linear(512, 1)
+        self.loss = torch.nn.BCEWithLogitsLoss()
+    
+    def extract_emb(self, hidden):
         hidden = ReverseLayerF.apply(hidden, 0.05)
         hidden, _ = self.lstm(hidden)
         hidden = hidden.mean(dim=1)
-        logit = self.fcn(hidden)
+        return hidden
+
+    def forward(self, pos_hidden, neg_hidden, label):
+        pos_emb = self.extract_emb(pos_hidden)
+        neg_emb = self.extract_emb(neg_hidden)
+        emb = torch.cat([pos_emb, neg_emb])
+        logit = self.fcn(emb).squeeze(-1)
         loss = self.loss(logit, label)
         return loss
 
@@ -197,13 +203,15 @@ class DATModel(DenoiseModel):
         self.noise_cls = NoiseClassifier()
 
     def forward(self, wav, target, lengths, loss_fn):
-        predicted = self.transform(wav, lengths)
+        predicted, pos_hidden = self.transform(wav, lengths, True)
         se_loss = loss_fn(predicted, target)
         with torch.no_grad():
-            noisy, label = next(iter(self.target_loader))
-            noisy, label = noisy.to(wav.device), label.to(wav.device)
-        _, hidden = self.transform(noisy, lengths, True)
-        adv_loss = self.noise_cls(hidden, label)
+            noisy = next(iter(self.target_loader))
+            noisy = noisy.to(wav.device)
+        _, neg_hidden = self.transform(noisy, lengths, True)
+        
+        label = torch.FloatTensor([1] * len(pos_hidden) + [0] * len(neg_hidden)).to(wav.device)
+        adv_loss = self.noise_cls(pos_hidden, neg_hidden, label)
         loss = se_loss + adv_loss
         return loss
 
